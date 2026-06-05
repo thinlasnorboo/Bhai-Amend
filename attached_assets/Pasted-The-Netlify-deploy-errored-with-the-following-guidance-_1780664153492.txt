@@ -1,0 +1,133 @@
+The Netlify deploy errored, with the following guidance provided:
+
+Diagnosis — isolated log lines
+- The build command that failed is shown at [line 71](#L71).
+- Vite failed to load its config and the build error is shown at [lines 72–75](#L72-L75): the process threw "Error: PORT environment variable is required but was not provided."
+- The failing PNPM script exit is shown at [lines 86–87](#L86-L87).
+
+Error type and cause
+- Error type: runtime exception thrown while loading vite.config.ts during the build.
+- Cause: the Vite config (artifacts/la-rc-hub/vite.config.ts) expects the PORT environment variable and throws when it is not set. Netlify build environment does not provide PORT by default, so vite's config load fails and the build aborts ([lines 72–75](#L72-L75)).
+
+Solution
+You have two options — a quick fix (set the env var in Netlify) and a safer code fix (make vite.config.ts tolerant of missing PORT). I recommend doing both.
+
+1) Quick fix — set PORT in Netlify build environment
+- In the Netlify UI: Site Settings → Build & deploy → Environment → Environment variables, add:
+  - Key: PORT
+  - Value: 5173
+- Or add to netlify.toml in your repo root (commit and push):
+```toml
+[build.environment]
+  PORT = "5173"
+```
+Then trigger a new deploy. This stops the vite config from erroring if it only checks for presence of PORT.
+
+2) Safer code fix — change artifacts/la-rc-hub/vite.config.ts to not require PORT during build
+- Verify the file exists and is committed: artifacts/la-rc-hub/vite.config.ts (you can view it in the repo: https://github.com/thinlasnorboo/Replit/blob/replit-agent/artifacts/la-rc-hub/vite.config.ts).
+- Replace the strict "throw if PORT missing" behavior with a fallback default so builds that run in environments without PORT still succeed. Example change:
+```ts
+// TypeScript example for vite.config.ts
+const port = process.env.PORT ? Number(process.env.PORT) : 5173; // fallback to 5173
+
+export default defineConfig(({ command }) => {
+  // Only use port for dev server; don't require it during build
+  return {
+    server: {
+      port,
+    },
+    // ...other config
+  };
+});
+```
+- Alternatively, guard the throw so it only applies in dev (not during build):
+```ts
+if (process.env.NODE_ENV === "development" && !process.env.PORT) {
+  throw new Error("PORT environment variable is required for local dev.");
+}
+```
+
+Why both: setting the Netlify env var fixes the immediate failure for CI builds. Updating the vite config ensures local development can still require PORT if you want, but CI/builds won't fail when PORT is absent.
+
+Re-run the build after applying one or both fixes.
+
+The relevant error logs are:
+
+Line 0: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
+Line 1: buildbot version: 9cf689c010ee4ab6135ad4a5e6b06ccb513df1ed
+Line 2: Fetching cached dependencies
+Line 3: Failed to fetch cache, continuing with build
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/thinlasnorboo/Replit
+Line 7: Preparing Git Reference refs/heads/replit-agent
+Line 8: Installing dependencies
+Line 9: mise ~/.config/mise/config.toml tools: python@3.14.3
+Line 10: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+Line 11: mise ~/.config/mise/config.toml tools: go@1.26.2
+Line 12: Downloading and installing node v22.22.3...
+Line 13: Downloading https://nodejs.org/dist/v22.22.3/node-v22.22.3-linux-x64.tar.xz...
+Line 45: ​
+Line 46: ❯ Version
+Line 47:   @netlify/build 35.14.0
+Line 48: ​
+Line 49: ❯ Flags
+Line 50:   accountId: 6a22bdaf83d9db62cdf9d944
+Line 51:   baseRelDir: true
+Line 52:   buildId: 6a22c441473a24728f09a9ef
+Line 53:   deployId: 6a22c441473a24728f09a9f1
+Line 54:   packagePath: artifacts/la-rc-hub
+Line 55: Failed during stage 'building site': Build script returned non-zero exit code: 2
+Line 56: ​
+Line 57: ❯ Current directory
+Line 58:   /opt/build/repo
+Line 59: ​
+Line 60: ❯ Config file
+Line 61:   No config file was defined: using default values.
+Line 62: ​
+Line 63: ❯ Context
+Line 64:   production
+Line 65: ​
+Line 66: Build command from Netlify app                                
+Line 67: ────────────────────────────────────────────────────────────────
+Line 68: ​
+Line 69: $ pnpm --filter @workspace/la-rc-hub... run build
+Line 70: Scope: 3 of 10 workspace projects
+Line 71: artifacts/la-rc-hub build$ vite build --config vite.config.ts
+Line 72: artifacts/la-rc-hub build: failed to load config from /opt/build/repo/artifacts/la-rc-hub/vite.con
+Line 73: artifacts/la-rc-hub build: error during build:
+Line 74: artifacts/la-rc-hub build: Error: PORT environment variable is required but was not provided.
+Line 75: artifacts/la-rc-hub build:     at file:///opt/build/repo/artifacts/la-rc-hub/node_modules/.vite-temp/vi
+Line 76: artifacts/la-rc-hub build:     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+Line 77: artifacts/la-rc-hub build:     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/load
+Line 78: artifacts/la-rc-hub build:     at async loadConfigFromBundledFile (file:///opt/build/repo/node_modules/
+Line 79: artifacts/la-rc-hub build:     at async bundleAndLoadConfigFile (file:///opt/build/repo/node_modules/.p
+Line 80: artifacts/la-rc-hub build:     at async loadConfigFromFile (file:///opt/build/repo/node_modules/.pnpm/v
+Line 81: artifacts/la-rc-hub build:     at async resolveConfig (file:///opt/build/repo/node_modules/.pnpm/vite@7
+Line 82: artifacts/la-rc-hub build:     at async createBuilder (file:///opt/build/repo/node_modules/.pnpm/vite@7
+Line 83: artifacts/la-rc-hub build:     at async CAC.<anonymous> (file:///opt/build/repo/node_modules/.pnpm/vite
+Line 84: artifacts/la-rc-hub build: Failed
+Line 85: /opt/build/repo/artifacts/la-rc-hub:
+Line 86:  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/la-rc-hub@0.0.0 build: `vite build --config vite.config.
+Line 87: Exit status 1
+Line 88: ​
+Line 89: "build.command" failed                                        
+Line 90: ────────────────────────────────────────────────────────────────
+Line 91: ​
+Line 92:   Error message
+Line 93:   Command failed with exit code 1: pnpm --filter @workspace/la-rc-hub... run build
+Line 94: ​
+Line 95:   Error location
+Line 96:   In Build command from Netlify app:
+Line 97:   pnpm --filter @workspace/la-rc-hub... run build
+Line 98: ​
+Line 99:   Resolved config
+Line 100:   build:
+Line 101:     command: pnpm --filter @workspace/la-rc-hub... run build
+Line 102:     commandOrigin: ui
+Line 103:     publish: /opt/build/repo/artifacts/la-rc-hub/dist
+Line 104:     publishOrigin: ui
+Line 105: Build failed due to a user error: Build script returned non-zero exit code: 2
+Line 106: Failing build: Failed to build site
+Line 107: Finished processing build request in 17.203s
+Line 108: [ERROR] Deploy logs are currently unavailable. We are working on resolving the issue.
