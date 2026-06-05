@@ -1,26 +1,21 @@
-import { Layout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Home } from "lucide-react";
-import { Link } from "wouter";
+import { AlertCircle } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <Layout>
-      <div className="min-h-[60vh] w-full flex flex-col items-center justify-center animate-in fade-in duration-500">
-        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-          <span className="text-4xl font-bold text-muted-foreground">?</span>
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2 text-center">Looks like you're lost</h1>
-        <p className="text-muted-foreground text-lg mb-8 text-center max-w-md">
-          We couldn't find the page you're looking for in the Hub. It might have been moved or deleted.
-        </p>
-        <Link href="/">
-          <Button size="lg" className="gap-2">
-            <Home className="h-5 w-5" /> Back to Dashboard
-          </Button>
-        </Link>
-      </div>
-    </Layout>
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardContent className="pt-6">
+          <div className="flex mb-4 gap-2">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
+          </div>
+
+          <p className="mt-4 text-sm text-gray-600">
+            Did you forget to add the page to the router?
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
